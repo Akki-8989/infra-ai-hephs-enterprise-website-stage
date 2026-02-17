@@ -1,0 +1,64 @@
+{
+  "frontendlinks": [
+    {
+      "frontend": "UI-AI-Hephs-Enterprise-Website",
+      "backends": [
+        "be-audit",
+        "be-auth",
+        "be-content",
+        "be-forms",
+        "be-media",
+        "be-system",
+        "be-users"
+      ]
+    }
+  ],
+  "backendLinks": [
+    {
+      "backend": "BE-Audit",
+      "backends": [
+        "be-platform"
+      ]
+    },
+    {
+      "backend": "BE-Auth",
+      "backends": [
+        "be-platform"
+      ]
+    },
+    {
+      "backend": "BE-Content",
+      "backends": [
+        "be-platform"
+      ]
+    },
+    {
+      "backend": "BE-Forms",
+      "backends": [
+        "be-platform"
+      ]
+    },
+    {
+      "backend": "BE-Media",
+      "backends": [
+        "be-platform"
+      ]
+    },
+    {
+      "backend": "BE-Platform",
+      "backends": []
+    },
+    {
+      "backend": "BE-System",
+      "backends": [
+        "be-platform"
+      ]
+    },
+    {
+      "backend": "BE-Users",
+      "backends": [
+        "be-platform"
+      ]
+    }
+  ]
+}
