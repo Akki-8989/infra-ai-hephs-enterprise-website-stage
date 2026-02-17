@@ -302,7 +302,7 @@ resource "azurerm_mysql_flexible_server" "main" {
   depends_on = [azurerm_resource_group.main]
 }
 
-resource "azurerm_mysql_flexible_database" "main" {
+resource "azurerm_mysql_flexible_server_database" "main" {
   count               = local.create_mysql ? 1 : 0
   name                = local.effective_db_name
   resource_group_name = azurerm_resource_group.main.name
