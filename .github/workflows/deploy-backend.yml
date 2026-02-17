@@ -64,7 +64,10 @@ jobs:
           # Priority: .csproj -> requirements.txt/pyproject.toml -> pom.xml/build.gradle -> package.json
           if find . -name "*.csproj" -type f | head -1 | grep -q "."; then
             RUNTIME_STACK="dotnet"
-            CSPROJ_PATH=$(find . -name "*.csproj" -type f | head -1)
+            CSPROJ_PATH=$(find . -name "*.csproj" -not -path "*/test*" -not -path "*/Test*" -type f | head -1)
+            if [ -z "$CSPROJ_PATH" ]; then
+              CSPROJ_PATH=$(find . -name "*.csproj" -type f | head -1)
+            fi
             echo "project_path=$CSPROJ_PATH" >> $GITHUB_OUTPUT
           elif [ -f "requirements.txt" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
             RUNTIME_STACK="python"
@@ -229,7 +232,7 @@ jobs:
           # ---- 2. App Service Plan ----
           echo ""
           echo "=== Checking App Service Plan ==="
-          if resource_in_state "azurerm_service_plan.main\\[0\\]"; then
+          if resource_in_state "azurerm_service_plan.main\[0\]"; then
             echo "App Service Plan: Already in state - SKIP"
           elif resource_exists_in_azure "az appservice plan show --name ${RESOURCE_PREFIX}-plan --resource-group $RG_NAME"; then
             echo "App Service Plan: EXISTS in Azure"
@@ -243,7 +246,7 @@ jobs:
           echo "=== Checking Web App (Runtime: $RUNTIME_STACK) ==="
           if [ "$RUNTIME_STACK" = "dotnet" ]; then
             # Windows Web App for .NET
-            if resource_in_state "azurerm_windows_web_app.main\\[0\\]"; then
+            if resource_in_state "azurerm_windows_web_app.main\[0\]"; then
               echo "Windows Web App: Already in state - SKIP"
             elif resource_exists_in_azure "az webapp show --name ${RESOURCE_PREFIX}-webapp --resource-group $RG_NAME"; then
               echo "Windows Web App: EXISTS in Azure"
@@ -253,7 +256,7 @@ jobs:
             fi
           else
             # Linux Web App for Node.js, Python, Java
-            if resource_in_state "azurerm_linux_web_app.main\\[0\\]"; then
+            if resource_in_state "azurerm_linux_web_app.main\[0\]"; then
               echo "Linux Web App: Already in state - SKIP"
             elif resource_exists_in_azure "az webapp show --name ${RESOURCE_PREFIX}-webapp --resource-group $RG_NAME"; then
               echo "Linux Web App: EXISTS in Azure"
@@ -267,7 +270,7 @@ jobs:
           if [ "$DATABASE_TYPE" = "sqlserver" ] && [ "$HAS_SQL_PASSWORD" = "true" ]; then
             echo ""
             echo "=== Checking SQL Server ==="
-            if resource_in_state "azurerm_mssql_server.main\\[0\\]"; then
+            if resource_in_state "azurerm_mssql_server.main\[0\]"; then
               echo "SQL Server: Already in state - SKIP"
             elif resource_exists_in_azure "az sql server show --name ${RESOURCE_PREFIX}-sqlserver --resource-group $RG_NAME"; then
               echo "SQL Server: EXISTS in Azure"
@@ -279,7 +282,7 @@ jobs:
             EFFECTIVE_DB_NAME="${DATABASE_NAME:-${RESOURCE_PREFIX}-db}"
             echo ""
             echo "=== Checking SQL Database ==="
-            if resource_in_state "azurerm_mssql_database.main\\[0\\]"; then
+            if resource_in_state "azurerm_mssql_database.main\[0\]"; then
               echo "SQL Database: Already in state - SKIP"
             elif resource_exists_in_azure "az sql db show --name $EFFECTIVE_DB_NAME --server ${RESOURCE_PREFIX}-sqlserver --resource-group $RG_NAME"; then
               echo "SQL Database: EXISTS in Azure"
@@ -290,7 +293,7 @@ jobs:
 
             echo ""
             echo "=== Checking SQL Firewall Rule ==="
-            if resource_in_state "azurerm_mssql_firewall_rule.allow_azure\\[0\\]"; then
+            if resource_in_state "azurerm_mssql_firewall_rule.allow_azure\[0\]"; then
               echo "SQL Firewall Rule: Already in state - SKIP"
             elif resource_exists_in_azure "az sql server firewall-rule show --name AllowAzureServices --server ${RESOURCE_PREFIX}-sqlserver --resource-group $RG_NAME"; then
               echo "SQL Firewall Rule: EXISTS in Azure"
@@ -304,7 +307,7 @@ jobs:
           if [ "$DATABASE_TYPE" = "postgresql" ] && [ "$HAS_SQL_PASSWORD" = "true" ]; then
             echo ""
             echo "=== Checking PostgreSQL Server ==="
-            if resource_in_state "azurerm_postgresql_flexible_server.main\\[0\\]"; then
+            if resource_in_state "azurerm_postgresql_flexible_server.main\[0\]"; then
               echo "PostgreSQL Server: Already in state - SKIP"
             elif resource_exists_in_azure "az postgres flexible-server show --name ${RESOURCE_PREFIX}-pgserver --resource-group $RG_NAME"; then
               echo "PostgreSQL Server: EXISTS in Azure"
@@ -316,7 +319,7 @@ jobs:
             EFFECTIVE_DB_NAME="${DATABASE_NAME:-${RESOURCE_PREFIX}-db}"
             echo ""
             echo "=== Checking PostgreSQL Database ==="
-            if resource_in_state "azurerm_postgresql_flexible_server_database.main\\[0\\]"; then
+            if resource_in_state "azurerm_postgresql_flexible_server_database.main\[0\]"; then
               echo "PostgreSQL Database: Already in state - SKIP"
             elif resource_exists_in_azure "az postgres flexible-server db show --database-name $EFFECTIVE_DB_NAME --server-name ${RESOURCE_PREFIX}-pgserver --resource-group $RG_NAME"; then
               echo "PostgreSQL Database: EXISTS in Azure"
@@ -327,7 +330,7 @@ jobs:
 
             echo ""
             echo "=== Checking PostgreSQL Firewall Rule ==="
-            if resource_in_state "azurerm_postgresql_flexible_server_firewall_rule.allow_azure\\[0\\]"; then
+            if resource_in_state "azurerm_postgresql_flexible_server_firewall_rule.allow_azure\[0\]"; then
               echo "PostgreSQL Firewall Rule: Already in state - SKIP"
             elif resource_exists_in_azure "az postgres flexible-server firewall-rule show --name AllowAzureServices --resource-group $RG_NAME --server-name ${RESOURCE_PREFIX}-pgserver"; then
               echo "PostgreSQL Firewall Rule: EXISTS in Azure"
@@ -341,7 +344,7 @@ jobs:
           if [ "$DATABASE_TYPE" = "mysql" ] && [ "$HAS_SQL_PASSWORD" = "true" ]; then
             echo ""
             echo "=== Checking MySQL Server ==="
-            if resource_in_state "azurerm_mysql_flexible_server.main\\[0\\]"; then
+            if resource_in_state "azurerm_mysql_flexible_server.main\[0\]"; then
               echo "MySQL Server: Already in state - SKIP"
             elif resource_exists_in_azure "az mysql flexible-server show --name ${RESOURCE_PREFIX}-mysqlserver --resource-group $RG_NAME"; then
               echo "MySQL Server: EXISTS in Azure"
@@ -353,7 +356,7 @@ jobs:
             EFFECTIVE_DB_NAME="${DATABASE_NAME:-${RESOURCE_PREFIX}-db}"
             echo ""
             echo "=== Checking MySQL Database ==="
-            if resource_in_state "azurerm_mysql_flexible_server_database.main\\[0\\]"; then
+            if resource_in_state "azurerm_mysql_flexible_server_database.main\[0\]"; then
               echo "MySQL Database: Already in state - SKIP"
             elif resource_exists_in_azure "az mysql flexible-server db show --database-name $EFFECTIVE_DB_NAME --server-name ${RESOURCE_PREFIX}-mysqlserver --resource-group $RG_NAME"; then
               echo "MySQL Database: EXISTS in Azure"
@@ -364,7 +367,7 @@ jobs:
 
             echo ""
             echo "=== Checking MySQL Firewall Rule ==="
-            if resource_in_state "azurerm_mysql_flexible_server_firewall_rule.allow_azure\\[0\\]"; then
+            if resource_in_state "azurerm_mysql_flexible_server_firewall_rule.allow_azure\[0\]"; then
               echo "MySQL Firewall Rule: Already in state - SKIP"
             elif resource_exists_in_azure "az mysql flexible-server firewall-rule show --name AllowAzureServices --resource-group $RG_NAME --server-name ${RESOURCE_PREFIX}-mysqlserver"; then
               echo "MySQL Firewall Rule: EXISTS in Azure"
