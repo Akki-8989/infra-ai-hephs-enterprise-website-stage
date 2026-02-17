@@ -316,6 +316,106 @@ jobs:
           npm install
           npm ci 2>/dev/null || npm install
 
+      - name: Auto-fix API URLs for gateway
+        if: needs.detect-and-setup.outputs.needs_gateway == 'true' || needs.detect-and-setup.outputs.api_url != ''
+        shell: bash
+        env:
+          API_URL: ${{ needs.detect-and-setup.outputs.api_url }}
+          FIX_SCRIPT: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Detect framework from package.json
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+            let envVarCode;
+            if (deps['vite'] || deps['@vitejs/plugin-react'] || deps['@vitejs/plugin-vue']) {
+              envVarCode = 'import.meta.env.VITE_API_URL';
+            } else if (deps['react-scripts']) {
+              envVarCode = 'process.env.REACT_APP_API_URL';
+            } else if (deps['next']) {
+              envVarCode = 'process.env.NEXT_PUBLIC_API_URL';
+            } else if (deps['@vue/cli-service']) {
+              envVarCode = 'process.env.VUE_APP_API_URL';
+            } else {
+              envVarCode = 'import.meta.env.VITE_API_URL';
+            }
+
+            // Determine TypeScript or JavaScript
+            const isTS = fs.existsSync('tsconfig.json');
+            const ext = isTS ? 'ts' : 'js';
+            const srcDir = fs.existsSync('src') ? 'src' : '.';
+
+            // Create api-config helper file
+            const configDir = path.join(srcDir, 'lib');
+            if (!fs.existsSync(configDir)) fs.mkdirSync(configDir, { recursive: true });
+            const configPath = path.join(configDir, `api-config.${ext}`);
+            if (!fs.existsSync(configPath)) {
+              fs.writeFileSync(configPath, `export const API_BASE_URL = ${envVarCode} || "";\n`);
+              console.log('Created: ' + configPath);
+            }
+
+            // Find source files recursively
+            function findFiles(dir, exts) {
+              let results = [];
+              try {
+                for (const item of fs.readdirSync(dir)) {
+                  if (['node_modules', '.git', 'dist', 'build', '.next', 'out'].includes(item)) continue;
+                  const full = path.join(dir, item);
+                  const stat = fs.statSync(full);
+                  if (stat.isDirectory()) results = results.concat(findFiles(full, exts));
+                  else if (exts.some(e => full.endsWith(e))) results.push(full);
+                }
+              } catch {}
+              return results;
+            }
+
+            const files = findFiles(srcDir, ['.ts', '.tsx', '.js', '.jsx', '.vue']);
+            let totalFixed = 0;
+
+            for (const file of files) {
+              if (file === configPath) continue;
+              let content = fs.readFileSync(file, 'utf8');
+
+              // Skip if no relative /api/ fetch calls
+              if (!content.includes("fetch('/api/") && !content.includes('fetch("/api/') && !content.includes("fetch(`/api/")) continue;
+
+              // Skip if already using API_BASE_URL
+              if (content.includes('API_BASE_URL')) continue;
+
+              // Calculate relative import path
+              const configModule = configPath.replace(/\.[^.]+$/, '');
+              let importPath = path.relative(path.dirname(file), configModule).replace(/\\/g, '/');
+              if (!importPath.startsWith('.')) importPath = './' + importPath;
+
+              // Add import after last import statement
+              const importLine = "import { API_BASE_URL } from '" + importPath + "';";
+              const lines = content.split('\n');
+              let lastImportIndex = -1;
+              for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('import ') || lines[i].startsWith('import{')) lastImportIndex = i;
+              }
+              if (lastImportIndex >= 0) lines.splice(lastImportIndex + 1, 0, importLine);
+              else lines.unshift(importLine);
+              content = lines.join('\n');
+
+              // Replace relative /api/ paths with API_BASE_URL prefix
+              content = content.replace(/fetch\('\/api\/([^']+)'/g, 'fetch(`${API_BASE_URL}/api/$1`');
+              content = content.replace(/fetch\("\/api\/([^"]+)"/g, 'fetch(`${API_BASE_URL}/api/$1`');
+              content = content.replace(/fetch\(`\/api\//g, 'fetch(`${API_BASE_URL}/api/');
+
+              fs.writeFileSync(file, content, 'utf8');
+              console.log('Fixed: ' + file);
+              totalFixed++;
+            }
+
+            console.log('\nTotal files fixed: ' + totalFixed);
+            if (totalFixed === 0) console.log('No files needed fixing (already configured or no /api/ calls found)');
+        run: |
+          echo "$FIX_SCRIPT" > /tmp/fix-api-urls.js
+          node /tmp/fix-api-urls.js
+
       - name: Build
         run: ${{ needs.detect-and-setup.outputs.build_command }}
         env:
