@@ -64,10 +64,34 @@ jobs:
           # Priority: .csproj -> requirements.txt/pyproject.toml -> pom.xml/build.gradle -> package.json
           if find . -name "*.csproj" -type f | head -1 | grep -q "."; then
             RUNTIME_STACK="dotnet"
-            CSPROJ_PATH=$(find . -name "*.csproj" -not -path "*/test*" -not -path "*/Test*" -type f | head -1)
+
+            echo "=== All .csproj files found ==="
+            find . -name "*.csproj" -type f
+            echo ""
+
+            # Strategy 1: Find .csproj with Sdk="Microsoft.NET.Sdk.Web" (web projects)
+            CSPROJ_PATH=""
+            for f in $(find . -name "*.csproj" -type f); do
+              if grep -q 'Microsoft.NET.Sdk.Web' "$f" 2>/dev/null; then
+                CSPROJ_PATH="$f"
+                echo "Found Web SDK project: $f"
+                break
+              fi
+            done
+
+            # Strategy 2: Exclude test projects by name and path
+            if [ -z "$CSPROJ_PATH" ]; then
+              CSPROJ_PATH=$(find . -name "*.csproj" -not -name "*Test*" -not -name "*test*" -not -name "*Tests*" -not -path "*/test*" -not -path "*/Test*" -not -path "*xunit*" -not -path "*nunit*" -type f | head -1)
+              echo "Non-test project found: $CSPROJ_PATH"
+            fi
+
+            # Strategy 3: Fallback to any .csproj
             if [ -z "$CSPROJ_PATH" ]; then
               CSPROJ_PATH=$(find . -name "*.csproj" -type f | head -1)
+              echo "Fallback project: $CSPROJ_PATH"
             fi
+
+            echo "Selected project: $CSPROJ_PATH"
             echo "project_path=$CSPROJ_PATH" >> $GITHUB_OUTPUT
           elif [ -f "requirements.txt" ] || [ -f "setup.py" ] || [ -f "pyproject.toml" ]; then
             RUNTIME_STACK="python"
