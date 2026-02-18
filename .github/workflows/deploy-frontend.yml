@@ -640,6 +640,41 @@ jobs:
           app_location: "./dist"
           skip_app_build: true
 
+      - name: Health Check - Frontend
+        run: |
+          FRONTEND_URL="https://${{ needs.terraform.outputs.static_webapp_name }}.azurestaticapps.net"
+          echo "Running health check on: $FRONTEND_URL"
+          echo ""
+
+          MAX_RETRIES=5
+          RETRY_DELAY=10
+          SUCCESS=false
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES..."
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$FRONTEND_URL" 2>/dev/null || echo "000")
+            echo "HTTP Status: $HTTP_STATUS"
+
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 500 ]; then
+              echo ""
+              echo "Frontend health check PASSED (HTTP $HTTP_STATUS)"
+              SUCCESS=true
+              break
+            fi
+
+            if [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+            fi
+          done
+
+          if [ "$SUCCESS" = "false" ]; then
+            echo ""
+            echo "Frontend health check FAILED after $MAX_RETRIES attempts"
+            echo "WARNING: Frontend may not be accessible at $FRONTEND_URL"
+            exit 1
+          fi
+
   # ============================================
   # JOB 6: Deploy Gateway (only when multiple backends)
   # ============================================
@@ -679,3 +714,40 @@ jobs:
         with:
           app-name: ${{ needs.terraform.outputs.gateway_webapp_name }}
           package: ./gateway-publish
+
+      - name: Health Check - Gateway
+        run: |
+          GATEWAY_URL="https://${{ needs.terraform.outputs.gateway_webapp_name }}.azurewebsites.net/health"
+          echo "Running health check on: $GATEWAY_URL"
+          echo ""
+
+          MAX_RETRIES=5
+          RETRY_DELAY=15
+          SUCCESS=false
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES..."
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$GATEWAY_URL" 2>/dev/null || echo "000")
+            echo "HTTP Status: $HTTP_STATUS"
+
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 500 ]; then
+              RESPONSE=$(curl -s --max-time 30 "$GATEWAY_URL" 2>/dev/null)
+              echo "Response: $RESPONSE"
+              echo ""
+              echo "Gateway health check PASSED (HTTP $HTTP_STATUS)"
+              SUCCESS=true
+              break
+            fi
+
+            if [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+            fi
+          done
+
+          if [ "$SUCCESS" = "false" ]; then
+            echo ""
+            echo "Gateway health check FAILED after $MAX_RETRIES attempts"
+            echo "WARNING: Gateway may not be running correctly"
+            exit 1
+          fi
