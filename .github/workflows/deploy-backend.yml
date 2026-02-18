@@ -691,3 +691,38 @@ jobs:
 
           echo "Backend dependency app settings configured successfully"
           echo "Settings applied: $SETTINGS"
+
+      - name: Health Check
+        run: |
+          WEBAPP_URL="https://${{ needs.terraform.outputs.webapp_name }}.azurewebsites.net"
+          echo "Running health check on: $WEBAPP_URL"
+          echo ""
+
+          MAX_RETRIES=5
+          RETRY_DELAY=15
+          SUCCESS=false
+
+          for i in $(seq 1 $MAX_RETRIES); do
+            echo "Attempt $i/$MAX_RETRIES..."
+            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$WEBAPP_URL" 2>/dev/null || echo "000")
+            echo "HTTP Status: $HTTP_STATUS"
+
+            if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 500 ]; then
+              echo ""
+              echo "Health check PASSED (HTTP $HTTP_STATUS)"
+              SUCCESS=true
+              break
+            fi
+
+            if [ "$i" -lt "$MAX_RETRIES" ]; then
+              echo "Waiting ${RETRY_DELAY}s before retry..."
+              sleep $RETRY_DELAY
+            fi
+          done
+
+          if [ "$SUCCESS" = "false" ]; then
+            echo ""
+            echo "Health check FAILED after $MAX_RETRIES attempts"
+            echo "WARNING: App may not be running correctly at $WEBAPP_URL"
+            exit 1
+          fi
