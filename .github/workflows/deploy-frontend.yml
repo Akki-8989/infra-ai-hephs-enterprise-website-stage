@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         description: 'Path-to-backend routing overrides (format: api/admin/resources=be-content;api/status=be-system)'
+      tier:
+        required: false
+        type: string
+        default: 'free'
+        description: 'Deployment tier: free, standard, premium (auto-detected from Azure subscription)'
 
 env:
   NODE_VERSION: '20.x'
@@ -264,7 +269,7 @@ jobs:
         working-directory: ./infra/terraform/frontend
         run: |
           APP_NAME="${{ inputs.repo_name }}"
-          TF_VARS="-var=app_name=$APP_NAME -var=project_type=frontend"
+          TF_VARS="-var=app_name=$APP_NAME -var=project_type=frontend -var=tier=${{ inputs.tier }}"
 
           if [ -n "${{ inputs.backend_api_url }}" ]; then
             TF_VARS="$TF_VARS -var=backend_api_url=${{ inputs.backend_api_url }}"
