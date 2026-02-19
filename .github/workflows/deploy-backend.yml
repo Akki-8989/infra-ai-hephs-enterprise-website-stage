@@ -34,6 +34,11 @@ on:
         type: string
         default: ''
         description: 'Comma-separated KEY=VALUE pairs for backend dependency URLs (e.g., BE_PLATFORM_URL=https://be-platform-webapp.azurewebsites.net)'
+      tier:
+        required: false
+        type: string
+        default: 'free'
+        description: 'Deployment tier: free, standard, premium (auto-detected from Azure subscription)'
 
 env:
   DOTNET_VERSION: '8.0.x'
@@ -414,7 +419,7 @@ jobs:
           DATABASE_TYPE="${{ inputs.database_type }}"
           DATABASE_NAME="${{ inputs.database_name }}"
 
-          TF_VARS="-var=app_name=$APP_NAME -var=project_type=backend -var=runtime_stack=$RUNTIME_STACK"
+          TF_VARS="-var=app_name=$APP_NAME -var=project_type=backend -var=runtime_stack=$RUNTIME_STACK -var=tier=${{ inputs.tier }}"
 
           if [ "$DATABASE_TYPE" != "none" ] && [ -n "$DATABASE_TYPE" ]; then
             TF_VARS="$TF_VARS -var=database_type=$DATABASE_TYPE"
